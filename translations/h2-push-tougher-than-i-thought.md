@@ -1,5 +1,6 @@
 # HTTP/2 推送比我想象得更加艰难
 摸鱼时偶然看到这篇文章，兴起翻译了一下。也是第一次尝试翻译技术文档，写到一半发现已经是17年的文章了，结论的时效性已经不强，但私心又不舍半途而废，因兴致而起的行为总是落地了、有了产出才会更有成就感。
+
 原文链接：[HTTP/2 push is tougher than I thought](https://jakearchibald.com/2017/h2-push-tougher-than-i-thought/)
 
 分割线以下为译文。
@@ -11,13 +12,17 @@ HTTP/2 推送比我刚开始想象得更复杂和底层，但真正让我措手�
 这不是一篇所谓“HTTP/2推送是个辣鸡”的吐槽文 ——我觉得 HTTP/2 推送是真的很强大，而且未来会发挥作用，但我不会再觉得它是拿来就能用的东西了。
 
 ## Map of fetching
+
 在你的页面和模板服务器之间，有一系列缓存之类的东西，它们能够阻塞 `intercept`请求：
+
 ![缓存](https://img-blog.csdnimg.cn/20200108110602201.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FxXzMxMzkzNDAx,size_16,color_FFFFFF,t_70)
+
 上图看起来很像那些”流程图怪“们用来解释 `Git`或者 `观察者模式`的东西，这种图对那些已经了解这东西的人很友好 ，但对不了解它们的人就很糟糕。如果你也这么觉得，那很抱歉orz！希望下面的部分能帮到你。
 
 ## HTTP/2推送 是如何工作的？
 
 ![页面与服务器对话](https://img-blog.csdnimg.cn/20200108110806591.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FxXzMxMzkzNDAx,size_16,color_FFFFFF,t_70)
+
 * 页面：嗨，example.com，我可以请求你的主页吗？
 * 服务器：当然！奥，但当我在发送你主页的同时，还会发你一份表格、一些图片、一些JavaScript、一些JSON。
 * 页面：额，当然。
@@ -30,6 +35,7 @@ HTTP/2 推送比我刚开始想象得更复杂和底层，但真正让我措手�
 这跟我之前了解的HTTP/2推送差不多，听起来好像还蛮简单，但坑爹就坑在它的细节里。。
 
 ## 什么都能用推送缓存
+
 HTTP/2推送是一个底层的网络特性——任何使用网络堆 `networking stack`的东西都能使用它。让它真正生效的关键是一致性和可预测性。
 
 我试了试 `give this a spin` 推送资源，并用以下方式获取：
@@ -41,7 +47,9 @@ HTTP/2推送是一个底层的网络特性——任何使用网络堆 `networkin
 * \<iframe src="…">
 
 我也减慢了所推送资源的传输速度，来观察资源还在推送过程中时，浏览器能不能匹配到资源。一些零碎的测试我放到了[github](https://github.com/jakearchibald/http2-push-test)上。
+
 ![在这里插入图片描述](https://img-blog.csdnimg.cn/20200108111318507.png)
+
 * **Edge** 当使用`fetch()`、`XMLHttpRequest`和`<iframe>`时，没有从推送缓存中获取资源。[（issue，包含视频）](https://developer.microsoft.com/en-us/microsoft-edge/platform/issues/12142852/)
 * **Safari** 是个怪胎，用不用推送缓存就像投硬币。Safari源自OSX的闭源的网络堆 `network stack`，但我觉得有些bug是Safari内部的。看起来它开启了太多连接，被推送的资源最终就分散在这些连接之间。这表示只有那个请求幸运地刚好使用了相同的连接时，你才能命中缓存——但这实在超出我的认知了。[（issue，包含视频）](https://bugs.webkit.org/show_bug.cgi?id=172639)
 
@@ -58,7 +66,9 @@ Safari的行为有不确定性，所以你不能通过hack来修正它。检测`
 
 ## 您可以推送 no-cache 和 no-store 的资源
 使用HTTP缓存的资源时，必有一些像`max-age`的东西来允许浏览器避免服务器的再校验。[（这是一个post请求的缓存头）](https://jakearchibald.com/2016/caching-best-practices/)HTTP/2 则不一样，推送资源时并不检查资源的新鲜度 `freshness`。
+
 ![在这里插入图片描述](https://img-blog.csdnimg.cn/20200108111531121.png)
+
 所有浏览器都是这样。
 
 ### 建议
@@ -68,7 +78,9 @@ Safari的行为有不确定性，所以你不能通过hack来修正它。检测`
 
 ## HTTP/2推送是浏览器最后检查的缓存
 用HTTP/2推送资源意味着：在它提供响应之前，如果什么缓存都没有的话，浏览器才会使用被推送的资源。包括图片缓存、预加载的缓存、`service workder` 和HTTP缓存。
+
 ![在这里插入图片描述](https://img-blog.csdnimg.cn/20200108111823290.png)
+
 所有浏览器在这点上表现一致。
 ### 建议
 注意。我举个例子，如果你在HTTP缓存中有一个匹配项，根据`max-age`它是有效的，然后你推送了一个更新的资源，因为HTPP缓存中旧资源的存在，新的资源将被忽视（除非由于某些原因这个API绕过了HTTP缓存）。
@@ -81,7 +93,9 @@ Safari的行为有不确定性，所以你不能通过hack来修正它。检测`
 推送缓存超于HTTP缓存之外，所以直到浏览器请求他们，缓存项才会进入HTTP缓存。那时，他们会通过HTTP缓存、service workder  等等来把推送的缓存拉取到页面。
 
 如果用户的连接不稳定，或许你成功地推送了一些东西，但在页面获取到他们之前，连接丢失了。这样的话用户不得不设置一个新的连接然后重新下载资源。
+
 ![在这里插入图片描述](https://img-blog.csdnimg.cn/20200108113657641.png)
+
 所有浏览器在这一点上表现一致。
 
 ### 建议
@@ -91,7 +105,9 @@ Safari的行为有不确定性，所以你不能通过hack来修正它。检测`
 每个连接都有它自己的推送缓存，但是多个页面能使用单次连接，意味着多页面可能分享推送缓存。
 
 在实践中，这意味着如果你单独推送了一个跳转响应（比如一个HTML页面），它不只是单独对那个页面有效（在本文的其他部分中，我将使用“页面”来描述，但实际生产中这包括了其他的上下文，比如`workers`）。
+
 ![在这里插入图片描述](https://img-blog.csdnimg.cn/20200108142445789.png)
+
 **Edge** 看起来在每个标签页使用了一个新的连接（[issue，包含视频](https://developer.microsoft.com/en-us/microsoft-edge/platform/issues/12144186/)）
 
 **Safari**不必要地对同源创建了多个连接。我很肯定这是它表现怪异的根源。（[issue，包含视频](https://bugs.webkit.org/show_bug.cgi?id=172639)）
@@ -139,7 +155,9 @@ Edge是此处唯一没有遵守规则的浏览器。它允许有凭据和无凭�
 
 ## 推送缓存中的项只能被用一次
 一旦浏览器使用了推送缓存中的东西，它就会被移除。它可能会最终在HTTP缓存里（取决于[缓存头](https://jakearchibald.com/2016/caching-best-practices/)），但不会再出现在推送缓存里了。
+
 ![在这里插入图片描述](https://img-blog.csdnimg.cn/2020010814563226.png)
+
 **Safari**在这里存在一个竞争关系。如果一个资源在它推送的时候被拉取多次，它就会被推送多次（[issue，包含视频](https://bugs.webkit.org/show_bug.cgi?id=172639)）。如果在资源已经结束推送后，它的表现才会正确，被拉取两次——第一次会返回推送缓存，而第二次不会。
 
 ### 建议
@@ -151,7 +169,9 @@ Edge是此处唯一没有遵守规则的浏览器。它允许有凭据和无凭�
 当你推送内容时，与客户端是没有太多交互的。这意味着你可能推送了浏览器已经有了的缓存。在这种场景下，HTTP/2规范允许浏览器通过`CANCEL`或`REFUSED_STREAM`的CODE来中止传输中的流，以此来避免浪费带宽。
 
 此处的规范不是严格的，所以这里我的意见是建议开发者视情况而定。
+
 ![在这里插入图片描述](https://img-blog.csdnimg.cn/20200108145701536.png)
+
 **Chrome**：如果推送项已经在推送缓存中了，它会拒绝推送。它更倾向于使用`PROTOCOL_ERROR`而不是`CANCEL`或`REFUSED_STREAM`，但这是次要的（[issue](https://bugs.chromium.org/p/chromium/issues/detail?id=726725)）。很可惜，Chrome不会拒绝已经存在于HTTP缓存中的推送项。听起来这几乎是一个已确定的问题，但我没能测试它（[issue](https://bugs.chromium.org/p/chromium/issues/detail?id=232040)）。
 
 **Safari**：如果推送项已经在推送缓存中了，它会拒绝推送，但只有当推送缓存的项根据缓存头（比如max-age）是新鲜的，除非用户点击刷新。这跟Chrome不一样，但我不觉得这是“错”的。可惜的是，跟Chrome一样，它不会拒绝已经存在于HTTP缓存中的项。（[issue](https://bugs.webkit.org/show_bug.cgi?id=172646)）
@@ -169,7 +189,9 @@ Edge是此处唯一没有遵守规则的浏览器。它允许有凭据和无凭�
 我们已经知道，被匹配到推送缓存中的更新会被忽视（这就是`no-store`和`no-cache`项被匹配的方式），但其他匹配机制应该被使用。我测试了`POST`请求，和`Vary: Cookie`。
 
 **更新**：规范提到了推送请求“必须是可缓存的，必须是安全的，必不能包含一个请求体”——刚开始我遗漏了这些定义。`POST`请求不能算是“安全”的范畴，所以浏览器应该拒绝`POST`请求。
+
 ![在这里插入图片描述](https://img-blog.csdnimg.cn/20200108145819488.png)
+
 **Chrome**接受`POST`推送流，但似乎没有使用他们（[issue](https://bugs.chromium.org/p/chromium/issues/detail?id=727653)）。匹配推送项时，Chrome也忽视了Vary头，即使这个issue表明使用QUIC时它会生效。
 
 `Firefox`拒绝了 POST 的推送流。但匹配推送项时，Firefox也忽视了 Vary 头。（[issue](https://bugzilla.mozilla.org/show_bug.cgi?id=1368664)）
@@ -205,7 +227,9 @@ Edge是此处唯一没有遵守规则的浏览器。它允许有凭据和无凭�
 > ——HTTP/2 规范
 
 理应如此。
+
 ![在这里插入图片描述](https://img-blog.csdnimg.cn/20200108145853970.png)
+
 **Chrome**允许网站推送所拥有授权的源。如果其他源来自相同的IP，它会复用连接（那些被使用的推送资源也是一样）。Chrome还不支持 ORIGIN frame。
 
 **Safari**允许网站推送已授权的资源，但它为其他源设置了一个新的连接，那些未使用的truism项也是。Safari不支持 ORIGIN frame。
@@ -253,7 +277,9 @@ Link: <https://fonts.example.com/font.woff2>; rel=preload; as=font; crossorigin;
 **预加载资源和页面一起存储**(或worker)。这使得它是浏览器检查的第一缓存（在service worker和HTTP缓存之前），而且丢失一个连接也不会丢失你的预加载项。直接链接到页面也表示，如果预加载项没有被使用，devtool可以显示一个有用的警告。
 
 每个页面都有它自己的预加载资源，所以预加载资源给其他页面是没有意义的。类似地，你不能在页面加载之后预加载资源来使用。从页面中预加载资源用于service worker的安装也是没有意义的，service worker不会检查页面的预加载缓存。
+
 ![在这里插入图片描述](https://img-blog.csdnimg.cn/2020010815001725.png)
+
 **Chrome**不是所有API都支持预加载。例如，`fetch()`不使用预加载缓存。`XHR`仅在携带凭据发送的情况下，会使用预加载缓存。[(issue)](https://bugs.chromium.org/p/chromium/issues/detail?id=652228)
 
 **Safari**在它最新的技术预览版本支持预加载。`fetch()`不使用预加载缓存，`XHR`也不使用。[(issue)](https://bugs.webkit.org/show_bug.cgi?id=158720)
